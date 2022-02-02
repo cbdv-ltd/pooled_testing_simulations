@@ -8,6 +8,7 @@ from sklearn.model_selection import GroupShuffleSplit
 from numpy.random import SeedSequence
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
+import time
 
 def test_p_eff(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, rng = default_rng(42)):
     a = rng.chisquare(chi_param, tests)
@@ -30,11 +31,13 @@ def test_p_eff(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, 
     # print("Total tests needed: {}".format(total_tests))
     # print("Total tests needed for individual tests: {}".format(len(a_scaled)))
     # print("Pooled testing requirement compared to individual tests: {:.2%}".format(total_tests/len(a_scaled)))
-    print("ran 1")
+    # print("ran 1")
     return total_tests/len(a_scaled)
 
 def wrapper_calc(arg_dict):
     kwargs = arg_dict
+    # print(type(kwargs))
+    # print(kwargs)
     return test_p_eff(**kwargs)
 
 if __name__ == "__main__":
@@ -44,10 +47,11 @@ if __name__ == "__main__":
     # print(test_matrix)
     # print(test_matrix.shape)
     tt= []
-    with Pool(processes=4) as pool:
+    begin = time.perf_counter()
+    with Pool(processes=8) as pool:
         for c,v in enumerate(per_fail):
             for cc,vv in enumerate(kk_val):
-                no_tests = 40
+                no_tests = 4000
                 tests = np.empty((no_tests, 1), float)
     
                 tests[:] = np.nan
@@ -57,8 +61,9 @@ if __name__ == "__main__":
                 dic_list = []
                 base_dic = {"k":vv, "pass_frac":v}
                 for i in args:
-                    base_dic["rng"] = i
-                    dic_list.append(base_dic)
+                    # print(i)
+                    base_dic["rng"] = default_rng(i)
+                    dic_list.append(base_dic.copy())
     
                 tests = pool.map(wrapper_calc, dic_list)
                 # for i in np.arange(no_tests):
@@ -71,3 +76,5 @@ if __name__ == "__main__":
                 print("Average pooled tests required: {:.2%} for a pool size of {}, pass rate of: {}".format(t_mean, vv, v))
                 test_matrix[c-1,cc-1]=t_mean
                 tt.append([v,vv,t_mean])
+    end = time.perf_counter()
+    print("That run took {} seconds".format(end-begin))
