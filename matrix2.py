@@ -154,17 +154,14 @@ def matrix2(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, loq
     total_fail = 0
     z, x, y = matrix.shape
     for i in range(z):
-        test_count += 1
-        if fail_test(matrix[i], fail) > 0:
-            a, b = guess_sample(matrix[i, :, :], fail)
-            test_count += a
-            total_fail += b
-            # print("trying again, tests: ", test_count)
+        t , f = check_matrix.guess(matrix[i,:,:], fail)
+        test_count += t
+        total_fail += f
             
 
-    print("Test count for this sample: ", test_count)
-    print("Failed samples found: ", total_fail)
-    print("Actual number of failed samples: ", len([x for x in sample if x>=fail]))
+    # print("Test count for this sample: ", test_count)
+    # print("Failed samples found: ", total_fail)
+    # print("Actual number of failed samples: ", len([x for x in sample if x>=fail])
     return test_count/len(sample)
 
 
@@ -189,14 +186,14 @@ def wrapper_calc(arg_dict):
     return matrix2(**kwargs)
 
 if __name__ == "__main__":
-    kk_val = [3,4,5,6,7,8,9,10,11,12,14,16,18,20]
+    kk_val = [7,8,9,10,11,12]
     # per_fail=[.5, .75, .8, .85, .9, .95, .975, .99, .996, .999]
     # kk_val = [5]
     per_fail=[.996]
     tt= []
     begin = time.perf_counter()
     sample_count = 2000
-    no_tests = 100
+    no_tests = 400
     for c,v in enumerate(per_fail):
         for cc,vv in enumerate(kk_val):
             tests = np.empty((no_tests, 1), float)
