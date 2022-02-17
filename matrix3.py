@@ -147,7 +147,7 @@ def guess_sample(matrix, fail, tests = 0, ool = 0):
     
     
 
-def matrix2(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, loq=0.3, loq_scale = 2, rng = 42):
+def matrix2(k = 5, dist_parm = (1, 0, 1), tests =2000, pass_frac = 0.95, fail = 1.2, loq=0.3, loq_scale = 2, rng = 42):
     sample = gen_sample(sample_count=tests, fail=fail, pass_rate=pass_frac, pool=k*k, seed=rng)
     matrix = np.resize(sample, (len(sample)//(k*k),k,k))
     test_count = 0
@@ -165,18 +165,18 @@ def matrix2(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, loq
     return test_count/len(sample)
 
 
-def gen_sample(sample_count: int=2000, fail: float=1.2, distribution: str="chi2", pass_rate: float=0.95,  pool: int=8, seed: int=42, freedom: float=1):
+def gen_sample(sample_count: int=2000, fail: float=1.2, distribution: str="lognorm", pass_rate: float=0.95,  pool: int=8, seed: int=42, dist_parm: tuple=(1,0,1)):
     # sample count is the minimum sample count, sample_count < returned sample size <= sample_size + pool    
     if distribution not in DIST_CONTINU:
         raise ValueError("{} is not a continuous distribution".format(distribution))
     rng = default_rng(seed)
     class_method = getattr(stats, distribution)    
-    a = class_method.rvs(df = freedom, size = sample_count + pool -1, random_state = rng)
-    a_scaled = a/(class_method.ppf(q = pass_rate, df =freedom)/fail)
-    c = (len(a_scaled) // pool) * pool # find ideal sample count (all pool sizes equal, no residual)
+    a = class_method.rvs(s=dist_parm[0], loc = dist_parm[1], scale = dist_parm[2], size = sample_count + pool -1, random_state = rng)
+    
+    c = (len(a) // pool) * pool # find ideal sample count (all pool sizes equal, no residual)
     # print("Sample size stats, count: {}, pool: {}, ideal pool: {}".format(len(a_scaled), pool, c))
     # print(b == len(a_scaled[:b]))
-    return a_scaled[:c]
+    return a[:c]
 
 def wrapper_calc(arg_dict):
     kwargs = arg_dict
@@ -186,34 +186,15 @@ def wrapper_calc(arg_dict):
     return matrix2(**kwargs)
 
 if __name__ == "__main__":
-    kk_val = [3,4,5,6,7,8,9,10,11,12,13,14]
+    kk_val = [4,6,8,10,12,14,16,18,20]
     # per_fail=[.5, .75, .8, .85, .9, .95, .975, .99, .996, .999]
     # kk_val = [5]
-    per_fail=[.975]
+    per_fail=[.996]
     tt= []
     begin = time.perf_counter()
     sample_count = 2000
-    no_tests = 400
+    no_tests = 40
     
-    # for c,v in enumerate(per_fail):
-    #     for cc,vv in enumerate(kk_val):
-    #         tests = np.empty((no_tests, 1), float)
-    #         tests[:] = np.nan
-    #         alpha = SeedSequence().entropy
-    #         args = np.arange(no_tests) + alpha
-    #         dic_list = []
-    #         base_dic = {"k":vv, "pass_frac":v, "tests":sample_count}
-    #         for i in args:
-    #             # print(i)
-    #             base_dic["rng"] = i # production version
-    #             # base_dic["rng"] = 42 # testing version
-    #             dic_list.append(base_dic.copy())
-    #         for ccc,vvv in enumerate(dic_list):
-    #             tests[ccc] = wrapper_calc(vvv)
-    #         t_mean = np.mean(tests)
-    #         print("Average pooled tests required: {:.2%} for a pool size of {}, sample size of {} pass rate of: {}, over {} test runs.\n----------------".format(t_mean, vv, sample_count, v, no_tests))
-    #         tt.append([v,vv,t_mean])
-
     with Pool(processes=16) as pool:
         for c,v in enumerate(per_fail):
             for cc,vv in enumerate(kk_val):
@@ -223,7 +204,10 @@ if __name__ == "__main__":
                 alpha = SeedSequence().entropy
                 args = np.arange(no_tests) + alpha
                 dic_list = []
-                base_dic = {"k":vv, "pass_frac":v, "tests":sample_count}
+                base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #pb
+                # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #hg
+                # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #cd
+                # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #as
                 for i in args:
                     # print(i)
                     # base_dic["rng"] = i # production version
@@ -236,6 +220,8 @@ if __name__ == "__main__":
     end = time.perf_counter()
     print("That run took {} seconds".format(end-begin))
     print(tt)
+    out = pd.DataFrame(tt, columns=["pass", "pool", "percentage"])
+    out.to_csv("lead.csv")
 
 
 
