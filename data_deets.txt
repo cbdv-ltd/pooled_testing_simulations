@@ -1,0 +1,5 @@
+	LOD	LOQ
+Arsenic	0.042	0.138
+Cadmium	0.016	0.052
+Lead	0.042	0.142
+Mercury	0.016	0.052
