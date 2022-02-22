@@ -1,7 +1,8 @@
 
 import numpy as np
 from numpy.random import default_rng
-
+import matrix3 as gen
+import pandas as pd
 
 from scipy.stats import chi2
 from numpy.random import SeedSequence
@@ -21,14 +22,19 @@ def de_conv_pool(tests, fail, batch):
             test_count = test_count + 1
     return test_count
 
-def test_p_conv_eff(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, loq=0.3, loq_scale = 2, rng = default_rng(42)):
+def test_p_conv_eff(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, loq=0.3, loq_scale = 5, rng = default_rng(42)):
     if fail/k < loq/loq_scale: #  evaluate if batch size is too big for limit of detection
-        # print("inapropriate batchsize for fail conc : LoQ")
+        print("inapropriate batchsize for fail conc : LoQ")
         return np.nan
     a = rng.chisquare(chi_param, tests) # build chisquare probability distribution
     crit = chi2.ppf(pass_frac, chi_param) # identify the x value corresponding to the desired pass rate
     scaling = crit/fail
     a_scaled = a/scaling # rescale the sample distribution so that the critical value == fail value
+    d = (1.4525204178329565, 0.0001955834220820136, 0.07417152849481998) #pb
+    d = (1.4525204178329565, 0.0001955834220820136, 0.07417152849481998) #hg
+    d =(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)  #cd
+    d = (1.4525204178329565, 0.0001955834220820136, 0.07417152849481998) #as
+    a_scaled = gen.gen_sample(sample_count=tests, pool=k, seed=rng, dist_parm = d)
     temp_pools = []
     gaps = np.arange(0,len(a_scaled),k) # build the pools
     sub_tests = 0 #counter for individual tests
@@ -93,19 +99,19 @@ def wrapper_calc(arg_dict):
     return test_p_conv_eff(**kwargs)
 
 if __name__ == "__main__":
-    kk_val = [2,3,4,5,6,7,8]
-    per_fail=[.5, .75, .8, .85, .9, .95, .975, .99, .999]
+    kk_val = [2,3,4,5,6,7,8,9,10,11,12,13,14]
+    # per_fail=[.5, .75, .8, .85, .9, .95, .975, .99, .999]
     # kk_val = [3,4]
-    # per_fail=[.9]
+    per_fail=[.9]
     # test_matrix = np.zeros((len(kk_val),len(per_fail)))
     # print(test_matrix)
     # print(test_matrix.shape)
     tt= []
     begin = time.perf_counter()
-    with Pool(processes=8) as pool:
+    with Pool(processes=16) as pool:
         for c,v in enumerate(per_fail):
             for cc,vv in enumerate(kk_val):
-                no_tests = 40
+                no_tests = 4000
                 tests = np.empty((no_tests, 1), float)
     
                 tests[:] = np.nan
@@ -134,3 +140,5 @@ if __name__ == "__main__":
     end = time.perf_counter()
     print("That run took {} seconds".format(end-begin))
     print(tt)
+    out = pd.DataFrame(tt, columns=["ignore", "pool", "tests"])
+    out.to_csv("as_single.csv")
