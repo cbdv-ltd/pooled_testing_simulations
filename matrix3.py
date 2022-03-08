@@ -136,38 +136,44 @@ def wrapper_calc(arg_dict):  #wrapper function for passing multiple keywords int
     return matrix2(**kwargs)
 
 if __name__ == "__main__":
-    kk_val = [4,6,8,10,12,14,16,18,20]
+    kk_val = np.arange(3,17,1)
     # kk_val = [8,9,10,11,12]
     # per_fail=[.5, .75, .8, .85, .9, .95, .975, .99, .996, .999]
     # kk_val = [5]
     per_fail=[.996]
-    tt= []
+    
     begin = time.perf_counter()
     sample_count = 2000
     no_tests = 4000
-    
-    with Pool(processes=16) as pool:
-        for c,v in enumerate(per_fail):
-            for cc,vv in enumerate(kk_val):
-                tests = np.empty((no_tests, 1), float)
-                tests[:] = np.nan
-                alpha = SeedSequence().entropy
-                args = np.arange(no_tests) + alpha
-                dic_list = []
-                base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #pb
-                # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #hg
-                # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #cd
-                # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #as
-                for i in args:
-                    # base_dic["rng"] = i # production version
-                    base_dic["rng"] = 42 # testing version
-                    dic_list.append(base_dic.copy())
-                tests = pool.map(wrapper_calc, dic_list)
-                t_mean = np.mean(tests)
-                print("Average pooled tests required: {:.2%} for a pool size of {}, pass rate of: {}\n----------------".format(t_mean, vv, v))
-                tt.append([v,vv,t_mean])
-    end = time.perf_counter()
-    print("That run took {} seconds".format(end-begin))
-    print(tt)
-    out = pd.DataFrame(tt, columns=["pass", "pool", "percentage"])
-    out.to_csv("lead_ex.csv")
+    runs = [({"dist_parm":(1.5233660418119728, 0.0027288920577292503, 0.06939280546211554), "fail": 0.5}, "pb_matrix.csv"),
+            ({"dist_parm":(1.1504315889666699, -0.0020480895355545316, 0.06710884489857513), "fail": 0.2}, "as_matrix.csv"),
+            ({"dist_parm":(1.0858164361757576, 0.00019808453407679164, 0.036053458447836084), "fail": 0.2}, "cd_matrix.csv"),
+            ({"dist_parm":(0.7502321546956426, -0.000961540716204136, 0.007837295888340656), "fail": 0.1}, "hg_matrix.csv")]
+    for r in runs:
+        tt= []
+        with Pool(processes=16) as pool:
+            for c,v in enumerate(per_fail):
+                for cc,vv in enumerate(kk_val):
+                    tests = np.empty((no_tests, 1), float)
+                    tests[:] = np.nan
+                    alpha = SeedSequence().entropy
+                    args = np.arange(no_tests) + alpha
+                    dic_list = []
+                    base_dic = {"k":vv, "pass_frac":v, "tests":sample_count}
+                    base_dic.update(r[0])
+                    # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #hg
+                    # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #cd
+                    # base_dic = {"k":vv, "pass_frac":v, "tests":sample_count, "dist_parm":(1.4525204178329565, 0.0001955834220820136, 0.07417152849481998)} #as
+                    for i in args:
+                        base_dic["rng"] = i # production version
+                        # base_dic["rng"] = 42 # testing version
+                        dic_list.append(base_dic.copy())
+                    tests = pool.map(wrapper_calc, dic_list)
+                    t_mean = np.mean(tests)
+                    print("Average pooled tests required: {:.2%} for a pool size of {}, pass rate of: {}\n----------------".format(t_mean, vv, v))
+                    tt.append([v,vv,t_mean])
+        end = time.perf_counter()
+        print("That run took {} seconds".format(end-begin))
+        print(tt)
+        out = pd.DataFrame(tt, columns=["pass", "pool", "percentage"])
+        out.to_csv(r[1])
