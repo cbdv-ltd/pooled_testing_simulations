@@ -32,18 +32,18 @@ def booter(sample_count: int, dist: np.array) -> np.array:
     return sample
 
 
-def test_p_conv_eff(k = 5, dist_parm = (1,1,1), chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, loq=0.3, loq_scale = 50, rng = default_rng(42)):
-    if fail/k < loq/loq_scale: #  evaluate if batch size is too big for limit of detection
-        print("inapropriate batchsize for fail conc : LoQ")
-        return np.nan
+def test_p_conv_eff(k = 5, data = "cali_data.csv", element = "lead", tests =2000, pass_frac = 0.95, fail = 1.2, rng = default_rng(42)):
+    # if fail/k < loq/loq_scale: #  evaluate if batch size is too big for limit of detection
+    #     print("inapropriate batchsize for fail conc : LoQ")
+    #     return np.nan
     # a = rng.chisquare(chi_param, tests) # build chisquare probability distribution
     # crit = chi2.ppf(pass_frac, chi_param) # identify the x value corresponding to the desired pass rate
     # scaling = crit/fail
     # a_scaled = a/scaling # rescale the sample distribution so that the critical value == fail value
 
     # a_scaled = gen.gen_sample(sample_count=tests, pool=k, seed=rng, dist_parm = dist_parm)
-    cali = pd.read_csv("cali_data.csv")
-    a_scaled = booter(tests, cali.cadmium)
+    cali = pd.read_csv(data)
+    a_scaled = booter(tests, cali[element].values)
  
     gaps = np.arange(0,len(a_scaled),k) # build the pools
     # sub_tests = 0 #counter for individual tests
@@ -76,29 +76,29 @@ def test_p_conv_eff(k = 5, dist_parm = (1,1,1), chi_param = 1, tests =2000, pass
     return test_count/len(a_scaled)
 
 
-def test_p_eff(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, rng = default_rng(42)):
-    a = rng.chisquare(chi_param, tests)
-    crit = chi2.ppf(pass_frac, chi_param)
-    scaling = crit/fail
-    a_scaled = a/scaling
-    temp_pools = []
-    gaps = np.arange(0,len(a_scaled),k)
-    for i in gaps:
-        b = np.mean(a_scaled[i:i+k])
-        temp_pools.append(b)
+# def test_p_eff(k = 5, chi_param = 1, tests =2000, pass_frac = 0.95, fail = 1.2, rng = default_rng(42)):
+#     a = rng.chisquare(chi_param, tests)
+#     crit = chi2.ppf(pass_frac, chi_param)
+#     scaling = crit/fail
+#     a_scaled = a/scaling
+#     temp_pools = []
+#     gaps = np.arange(0,len(a_scaled),k)
+#     for i in gaps:
+#         b = np.mean(a_scaled[i:i+k])
+#         temp_pools.append(b)
 
-    count = 0
-    for i in temp_pools:
-        if i >= fail/k:
-            count += 1
-    total_tests = count * k + len(temp_pools)
-    # print("Pools failing the pooled test criteria: {}".format(count))
-    # print("Tests needed in the pool stage: {}".format(len(temp_pools)))
-    # print("Total tests needed: {}".format(total_tests))
-    # print("Total tests needed for individual tests: {}".format(len(a_scaled)))
-    # print("Pooled testing requirement compared to individual tests: {:.2%}".format(total_tests/len(a_scaled)))
-    # print("ran 1")
-    return total_tests/len(a_scaled)
+#     count = 0
+#     for i in temp_pools:
+#         if i >= fail/k:
+#             count += 1
+#     total_tests = count * k + len(temp_pools)
+#     # print("Pools failing the pooled test criteria: {}".format(count))
+#     # print("Tests needed in the pool stage: {}".format(len(temp_pools)))
+#     # print("Total tests needed: {}".format(total_tests))
+#     # print("Total tests needed for individual tests: {}".format(len(a_scaled)))
+#     # print("Pooled testing requirement compared to individual tests: {:.2%}".format(total_tests/len(a_scaled)))
+#     # print("ran 1")
+#     return total_tests/len(a_scaled)
 
 def wrapper_calc(arg_dict):
     kwargs = arg_dict
@@ -117,19 +117,25 @@ if __name__ == "__main__":
     # print(test_matrix.shape)
 
     begin = time.perf_counter()
-    runs = [({"dist_parm":(1.5233660418119728, 0.0027288920577292503, 0.06939280546211554), "fail": 0.5}, "pb_single.csv"),
-            ({"dist_parm":(1.1504315889666699, -0.0020480895355545316, 0.06710884489857513), "fail": 0.2}, "as_single.csv"),
-            ({"dist_parm":(1.0858164361757576, 0.00019808453407679164, 0.036053458447836084), "fail": 0.2}, "cd_single.csv"),
-            ({"dist_parm":(0.7502321546956426, -0.000961540716204136, 0.007837295888340656), "fail": 0.1}, "hg_single.csv")]
+    runs = [({"data":"cali_data.csv", "element": "lead", "fail": 0.5},    "cali_pb_single.csv"),
+            ({"data":"cali_data.csv", "element": "arsenic", "fail": 0.2}, "cali_as_single.csv"),
+            ({"data":"cali_data.csv", "element": "cadmium", "fail": 0.2}, "cali_cd_single.csv"),
+            ({"data":"cali_data.csv", "element": "mercury", "fail": 0.1}, "cali_hg_single.csv"),
+            ({"data":"wash_data.csv", "element": "lead", "fail": 0.5},    "wash_pb_single.csv"),
+            ({"data":"wash_data.csv", "element": "arsenic", "fail": 0.2}, "wash_as_single.csv"),
+            ({"data":"wash_data.csv", "element": "cadmium", "fail": 0.2}, "wash_cd_single.csv"),
+            ({"data":"wash_data.csv", "element": "mercury", "fail": 0.1}, "wash_hg_single.csv")]
     for r  in runs:
         tt =[]
+        print(r[0])
         with Pool(processes=8) as pool:
             for c,v in enumerate(per_fail):
                 for cc,vv in enumerate(kk_val):
-                    no_tests = 100
+                    no_tests = 400
                     tests = np.empty((no_tests, 1), float)
         
                     tests[:] = np.nan
+                    # print("shape of tests: ", tests.shape)
                     # print(tests)
                     alpha = SeedSequence().entropy
                     args = np.arange(no_tests) + alpha
@@ -148,13 +154,14 @@ if __name__ == "__main__":
                     #     b = i + 50
                     #     # print(b)
                     #     blank = pool.apply_async(test_p_eff, kwds={"k":vv, "pass_frac":v, "rng":default_rng(alpha + b)})
-                        
+                       
                     t_mean =np.mean(tests)
+                    # print("weird code")
                     print("Average pooled tests required: {:.2%} for a pool size of {}, pass rate of: {}".format(t_mean, vv, v))
                     # test_matrix[c-1,cc-1]=t_mean
                     tt.append([v,vv,t_mean])
         end = time.perf_counter()
         print("That run took {} seconds".format(end-begin))
-        print(tt)
+        # print(tt)
         out = pd.DataFrame(tt, columns=["ignore", "pool", "tests"])
         out.to_csv(r[1])
